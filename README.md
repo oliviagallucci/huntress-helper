@@ -9,4 +9,7 @@ macOS malware workflow based on [Huntress' research](https://www.huntress.com/bl
 ## Contributors 
 
 - @oliviagallucci - developer
+
+## Thanks and credits 
+
 - Huntress Researchers: Alden Schmidt, Stuart Ashenbrenner, and Jonathan Semon
