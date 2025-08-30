@@ -2,5 +2,5 @@
 macOS malware workflow based on Huntress' research. Generates logs for detection.
 
 
-1.
+1. Do some sort of social engineering to get the user to need support for some social media or software. In this project, we will use Zoom. 
 2. Have the user run: `zoom_sdk_support.scpt`. This will download the `/tmp/zoom_payload.sh`
